@@ -15,7 +15,7 @@ from pylab import *
 from numpy import *
 
 ##########作成ディレクトリ設定####################
-dir_name = "cond_infer" # 変更箇所
+dir_name = "output_csv" # 変更箇所
 d = datetime.datetime.today()
 path = dir_name + '_%s-%s-%s_%s-%s' % (d.year, d.month, d.day,d.hour,d.minute)
 #path = dir_name
@@ -33,7 +33,7 @@ test_home = argvs[2] if argc != 1 else "home202"#デフォルト宅
 homes = [train_home, test_home]
 
 ########出力ファイル名#####################
-csv_file_name = "cond_infer_302_302_fin_20"
+csv_file_name = "output"
 
 #########---01SC or normalSC 選択設定###########
 #use_01SC = False
@@ -507,9 +507,11 @@ def extract_As_vector(A):
 		list.append(float(Ahh[elem]))
 	nplist = array(list)
 	return nplist
-####################main##############################
 
 
+
+
+#################### Main Start ##############################
 
 
 day_max_train = (last_day_train - first_day_train).days +2 
@@ -655,6 +657,8 @@ for homename in energy_usage_device_answer.keys():
 
 
 
+#################### SC処理開始 ################################
+
 Bs={}
 #Base_device  R^T*n T= time_max  nはbaseの数 Tの添字のベクトルに対して二乗が<= 1
 
@@ -664,8 +668,6 @@ As_train={}
 #X= Base_device * Coefficient_device time_max*day_max
 # today()メソッドで現在日付・時刻のdatetime型データの変数を取得
 
-
-#f = open(path+'/result.csv', 'w') # 書き込みモードで開く
 
 for homename, X_home_device in X_device.iteritems():
 	if homename == train_home:
@@ -678,6 +680,30 @@ for homename, X_home_device in X_device.iteritems():
 			print device 
 			(As_train[homename][device], Bs[homename][device]) = optimize_train(X_device_each,lam,base_func_num,max_iteration)
 print "optimize_train end"
+
+for homename, Bs_device in Bs.iteritems():
+	As = initializeAs(X_total[test_home], Bs_device)
+	As_test, diff = optimizeAs(X_total[test_home], Bs_device, As, lam, max_iteration)
+
+#################### SC処理終了 ################################
+
+
+
+##################### 残りは出力 ##############################
+
+#答え合わせ
+f2 = open(path + '/' + csv_file_name + '.csv', 'a') # 書き込みモードで開く
+
+X_cond_answer_each = X_device_answer[test_home]['cond']
+X_total_answer_each = X_total[test_home]
+
+#出力
+Y = dot(Bs[train_home]['cond'], As_test['cond'])
+(time_id_max_,day_id_max_) = X_cond_answer_each.shape
+for q in range(day_id_max_):
+	for p in range(time_id_max_):
+		f2.write(",".join([str(train_home),str(test_home),str(predict_day_id),str(p),str(X_total_answer_each[p][q]),str(X_cond_answer_each[p][q]),str(Y[p][q])]) + "\n")
+
 
 
 '''
@@ -709,139 +735,4 @@ plt.plot(As_after_train_vec)
 #plt.xlim(0, 200)
 plt.show()  
 plt.savefig(path + '/' + "A_af_train.png")
-'''
-
-"""
-if use_disagrigation:
-	print "disagrigation phase"
-	Bs = disagrigation(X_all_train, As_train,Bs, lam, max_iteration)
-
-	'''
-	Bs_ave_vec_after_perceptron = extract_Bs_ave_vector(Bs)
-	plt.plot(Bs_ave_vec_after_perceptron)
-	plt.show()
-	plt.savefig(path + '/' + "B_af_perceptron.png")
-	'''
-	#各基底ベクトル
-	Bs_each_vec_after_perceptron = extract_Bs_each_vector(Bs)
-	count2 = 1
-	for list in Bs_each_vec_after_perceptron:
-		plt.plot(list)
-		plt.show()
-		plt.savefig(path + '/' +  "B_af_perceptron_" + str(count2) +".png")
-		count2 += 1
-
-	#plt.xlim(0, 288)
-"""
-
-print "study phase end"
-
-'''
-#自分の家の推定
-for homename, X_home_total_test in X_total.iteritems():
-	print As_test
-	print homename
-	As = initializeAs(X_home_total_test, Bs)
-	As_test = optimizeAs(X_home_total_test, Bs, As, lam, max_iteration)
-'''
-
-for homename, Bs_device in Bs.iteritems():
-	As = initializeAs(X_total[test_home], Bs_device)
-	As_test, diff = optimizeAs(X_total[test_home], Bs_device, As, lam, max_iteration)
-
-	'''
-	print homename
-	print "This home total difference value is..."
-	print diff
-	Y = dot(Bs_device['cond'], As_test['cond'])
-	Z = Y - X_device_answer[homename]['cond']
-	Z_double = Z * Z
-	z_sum = Z_double.sum()
-	print "This home cond diffrence value is..."
-	print z_sum
-	'''
-
-
-'''
-###As可視化######
-As_vec_after_optimize = extract_As_vector(As_test)
-#print As_vec_after_optimize
-plt.plot(As_vec_after_optimize, '--o')
-#plt.xlim(0, 200)
-plt.show()  
-plt.savefig(path + '/' + "A_af_optimize.png")
-'''
-
-##########################残りは出力########################
-
-#答え合わせ
-f2 = open(path + '/' + csv_file_name + '.csv', 'a') # 書き込みモードで開く
-
-X_cond_answer_each = X_device_answer[test_home]['cond']
-X_total_answer_each = X_total[test_home]
-
-#出力
-Y = dot(Bs[train_home]['cond'], As_test['cond'])
-(time_id_max_,day_id_max_) = X_cond_answer_each.shape
-for q in range(day_id_max_):
-	for p in range(time_id_max_):
-		f2.write(",".join([str(train_home),str(test_home),str(predict_day_id),str(p),str(X_total_answer_each[p][q]),str(X_cond_answer_each[p][q]),str(Y[p][q])]) + "\n")
-
-'''
-for device in sorted(X_device_answer.keys()):#最適化する
-
-	X_device_answer_each = X_device_answer[device]
-
-	#出力
-	Y = dot(Bs[device], As_test[device])
-	(time_id_max_,day_id_max_) = X_device_answer_each.shape
-	for q in range(day_id_max_):
-		for p in range(time_id_max_):
-			f2.write(",".join([str(device),str(p),str(q),str(X_device_answer_each[p][q]),str(Y[p][q])]) + "\n")
-'''
-
-'''
-
-
-#答え合わせ2
-f3 = open(path+'/result_all2.csv', 'w') 
-#出力
-Z = zeros(X_all_test.shape)
-
-for device in As_test.keys():
-	Z += dot(Bs[device],As_test[device])
-
-(time_id_max_,day_id_max_) =X_all_test.shape
-for q in range(day_id_max_):
-	for p in range(time_id_max_):
-		f3.write(",".join([str(p),str(q),str(X_all_test[p][q]),str(Z[p][q])]) + "\n")
-
-
-
-acc = accuracy(X_device_answer,Bs,As_test)*100
-print acc
-print path
-print "base_func_num = " + str(base_func_num)
-
-
-#答え合わせ2
-f4 = open(path+'/config.txt', 'w') 
-
-f4.write("01 sparce coding\n")
-f4.write(str(base_func_num) + "\n")
-#f4.write(str(folder)+ "\n")
-#f4.write(str(tap_list)+ "\n")
-
-f4.write(str(first_day_train)+ "\n")
-f4.write(str(last_day_train)+ "\n")
-f4.write(str(first_day_test)+ "\n")
-f4.write(str(last_day_test)+ "\n")
-f4.write(str(use_disagrigation)+ "\n")
-#f4.write(str(choose_tap)+ "\n")
-#f4.write(str(choose_tap_inverse)+ "\n")
-
-f4.write(str(acc)+ "\n")
-
-f4.write(str(path))
-
 '''
