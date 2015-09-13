@@ -62,11 +62,6 @@ print "base_func_num = " + str(base_func_num)
 
 max_iteration = 30
 
-#######パーセプトロン利用設定##########
-#use_disagrigation = True
-use_disagrigation = False
-alpha = 0.0000001
-
 
 ###############評価関数用メソッド##############
 
@@ -373,97 +368,6 @@ def normal_optimizeAs_iteration(X_all, As, Bs, lam):
 
 	return As
 
-#################disagrigation用メソッド################
-
-def convergence_check(Bs,Bs_last):
-	print "convergence_check"
-	val = 0
-
-	for device in Bs.keys():
-		tmp = Bs[device] -Bs_last[device]
-		val += (tmp*tmp).sum()
-	print val
-	return val
-
-
-
-def perceptron_update_Bs(X,As_org,As_hat,Bs):
-	global alpha
-	print "perceptron"
-	Bs_ret = {}
-
-	BA_hat = makeBA(Bs,As_hat)
-	BA_org = makeBA(Bs,As_org)
-
-	X_minus_BA_hat = X - BA_hat
-	X_minus_BA_org = X - BA_org
-
-	print "get perceptron"
-	for device in Bs.keys():
-		Bs_ret[device] = Bs[device] - alpha * ( dot(X_minus_BA_hat,As_hat[device].transpose()) - dot(X_minus_BA_org,As_org[device].transpose()) )
-
-		
-	
-	return Bs_ret
-
-
-def makeBA(As,Bs):
-
-	flag = False
-
-	for device in Bs.keys():
-		if flag:
-			Cs += dot(As[device], Bs[device])
-		else:
-			Cs = dot(As[device], Bs[device])
-			flag = True
-		
-	return Cs
-
-
-def renormalize_Bs(Bs):
-	retB ={}
-
-	for device in Bs.keys():
-		B = Bs[device]
-		(time_id_max,base_num) = B.shape
-
-		for q in range(base_num):
-			b_q = math.sqrt(dot(B[:,q],B[:,q]))
-			for p in range(time_id_max):
-				if b_q == 0:
-					B[p,q] =0
-				else:
-					B[p,q] = 1/b_q * math.fabs(B[p,q])
-		retB[device] = B
-
-	return retB
-
-
-
-
-def disagrigation(X,As_org,Bs,lam,max_iteration): #
-	As_hat = deepcopy(As_org) 
-	last_val = float("inf")
-	counter = 0 
-	while True:
-		Bs_last = deepcopy(Bs)
-		As_hat, diff = optimizeAs(X, Bs, As_hat, lam, max_iteration) #論文ではA^
-		Bs = perceptron_update_Bs(X,As_org,As_hat,Bs)
-		print "after_perceptron_update"
-		print Bs
-		#Bs = renormalize_Bs(Bs)
-		#print "after_renormalize"
-		print Bs
-
-		val =  convergence_check(Bs,Bs_last)
-		if val > last_val or counter >15:
-			break
-
-		last_val = val
-		counter +=1
-
-	return Bs
 
 ############################original#################
 def extract_Bs_ave_vector(B):
